@@ -51,9 +51,17 @@ public class InscriptionDAO {
         return list;
     }
 
-    /** Le trigger refuse l'inscription (employé désactivé, bus complet, doublon) via SIGNAL. */
+    /**
+     * Le trigger refuse l'inscription (employé désactivé, bus complet, doublon) via SIGNAL.
+     * Une inscription ANNULEE existante (même employé, même affectation) est réactivée.
+     */
     public void insert(Inscription i) throws SQLException {
-        String sql = "INSERT INTO inscription (id_employe, id_affectation, statut) VALUES (?, ?, ?)";
+        String sql = """
+            INSERT INTO inscription (id_employe, id_affectation, statut) VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE id_inscription = LAST_INSERT_ID(id_inscription),
+                                    statut = VALUES(statut),
+                                    date_inscription = CURRENT_TIMESTAMP
+            """;
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, i.getIdEmploye());
