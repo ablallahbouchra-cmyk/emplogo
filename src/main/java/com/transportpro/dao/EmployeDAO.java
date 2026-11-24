@@ -34,6 +34,7 @@ public class EmployeDAO {
                         rs.getString("matricule"),
                         rs.getString("nom"),
                         rs.getString("prenom"),
+                        rs.getString("email"),
                         rs.getString("telephone"),
                         rs.getString("adresse"),
                         rs.getString("departement"),
@@ -60,6 +61,7 @@ public class EmployeDAO {
                             rs.getString("matricule"),
                             rs.getString("nom"),
                             rs.getString("prenom"),
+                            rs.getString("email"),
                             rs.getString("telephone"),
                             rs.getString("adresse"),
                             rs.getString("departement"),
@@ -73,21 +75,21 @@ public class EmployeDAO {
     }
     public void insert(Employe e) throws SQLException {
         String sql = """
-            INSERT INTO employe (matricule, nom, prenom, telephone,
+            INSERT INTO employe (matricule, nom, prenom, email, telephone,
                                  adresse, departement, date_embauche, actif)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, e.getMatricule());
             ps.setString(2, e.getNom());
             ps.setString(3, e.getPrenom());
-            ps.setString(4, e.getTelephone());
-            ps.setString(5, e.getAdresse());
-            ps.setString(6, e.getDepartement());
-            ps.setDate(7, e.getDateEmbauche() != null
-                    ? Date.valueOf(e.getDateEmbauche()) : null);
-            ps.setBoolean(8, e.isActif());
+            ps.setString(4, e.getEmail());
+            ps.setString(5, e.getTelephone());
+            ps.setString(6, e.getAdresse());
+            ps.setString(7, e.getDepartement());
+            JdbcUtil.setDate(ps, 8, e.getDateEmbauche());
+            ps.setBoolean(9, e.isActif());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) e.setIdEmploye(keys.getInt(1));
@@ -96,7 +98,7 @@ public class EmployeDAO {
     }
     public void update(Employe e) throws SQLException {
         String sql = """
-            UPDATE employe SET matricule=?, nom=?, prenom=?, telephone=?,
+            UPDATE employe SET matricule=?, nom=?, prenom=?, email=?, telephone=?,
                    adresse=?, departement=?, date_embauche=?, actif=?
             WHERE id_employe=?
             """;
@@ -105,13 +107,13 @@ public class EmployeDAO {
             ps.setString(1, e.getMatricule());
             ps.setString(2, e.getNom());
             ps.setString(3, e.getPrenom());
-            ps.setString(4, e.getTelephone());
-            ps.setString(5, e.getAdresse());
-            ps.setString(6, e.getDepartement());
-            ps.setDate(7, e.getDateEmbauche() != null
-                    ? Date.valueOf(e.getDateEmbauche()) : null);
-            ps.setBoolean(8, e.isActif());
-            ps.setInt(9, e.getIdEmploye());
+            ps.setString(4, e.getEmail());
+            ps.setString(5, e.getTelephone());
+            ps.setString(6, e.getAdresse());
+            ps.setString(7, e.getDepartement());
+            JdbcUtil.setDate(ps, 8, e.getDateEmbauche());
+            ps.setBoolean(9, e.isActif());
+            ps.setInt(10, e.getIdEmploye());
             ps.executeUpdate();
         }
     }

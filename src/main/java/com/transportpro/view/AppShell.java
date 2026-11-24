@@ -3,6 +3,7 @@ package com.transportpro.view;
 import com.transportpro.Ctx;
 import com.transportpro.Page;
 import com.transportpro.controller.MainController;
+import com.transportpro.model.CompteUtilisateur;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -23,8 +24,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /** Fenêtre principale : barre latérale + en-tête + zone de contenu, avec modale et notifications. */
 public class AppShell extends StackPane implements Ctx {
@@ -33,9 +37,8 @@ public class AppShell extends StackPane implements Ctx {
     private Page page;
     private final Runnable onLogout;
 
-    // ✅ NOUVEAU : controller injecté
     private final MainController controller = new MainController(this);
-
+    private final CompteUtilisateur compte;
 
     private final VBox navBox = new VBox(2);
     private final Label crumb = Ui.label("", "crumb");
@@ -46,9 +49,11 @@ public class AppShell extends StackPane implements Ctx {
     private final Label sideName = Ui.label("", "side-name");
     private final Label sideRole = Ui.label("", "side-role");
 
-    public AppShell(String role, Runnable onLogout) {
+    public AppShell(String role, CompteUtilisateur compte, Runnable onLogout) {
         this.role = role;
+        this.compte = compte;
         this.onLogout = onLogout;
+        controller.setCompteConnecte(compte);
 
         BorderPane root = new BorderPane();
         root.setLeft(buildSidebar());
@@ -127,8 +132,9 @@ public class AppShell extends StackPane implements Ctx {
             navBox.getChildren().add(b);
         }
 
-        sideInitials.setText(driver ? "HO" : "AE");
-        sideName.setText(driver ? "Hassan Ouazzani" : "Amine El Mansouri");
+        String nom = compte != null ? compte.getNomAffiche() : "Mode démonstration";
+        sideInitials.setText(compte != null ? Fmt.initials(nom) : "DM");
+        sideName.setText(nom);
         sideRole.setText(role);
     }
 
@@ -138,7 +144,7 @@ public class AppShell extends StackPane implements Ctx {
 
         HBox search = Ui.search("Rechercher dans TransportPro…", 255);
 
-        VBox today = new VBox(1, Ui.label("Aujourd’hui", "today-sm"), Ui.label("12 juin 2025", "today-b"));
+        VBox today = new VBox(1, Ui.label("Aujourd’hui", "today-sm"), Ui.label(LocalDate.now().format(DateTimeFormatter.ofPattern("d MMMM yyyy", Fmt.FR)), "today-b"));
         today.getStyleClass().add("today");
 
         Label count = Ui.label("3", "notify-count");
@@ -160,7 +166,9 @@ public class AppShell extends StackPane implements Ctx {
             navigate(role.equals("Chauffeur") ? Page.PLANNING : Page.DASHBOARD);
         });
 
-        HBox tools = new HBox(14, search, today, bell, roleBox);
+        HBox tools = new HBox(14, search, today, bell);
+        // Changement de profil réservé au mode démonstration (rôle réel imposé après authentification)
+        if (compte == null) tools.getChildren().add(roleBox);
         tools.setAlignment(Pos.CENTER_RIGHT);
 
         HBox header = new HBox(heading, Ui.spacer(), tools);
@@ -183,14 +191,14 @@ public class AppShell extends StackPane implements Ctx {
         title.setText(p.title);
 
         Node content = switch (p) {
-            case DASHBOARD -> DashboardPage.build(this);
-            case EMPLOYEES, BUSES, DRIVERS, TRIPS, INCIDENTS, ACCOUNTS -> ListPages.build(p, this , controller);
-            case ASSIGNMENTS -> AssignmentsPage.build(this);
-            case REGISTRATIONS -> RegistrationsPage.build(this);
-            case ATTENDANCE -> AttendancePage.build(this);
+            case DASHBOARD -> DashboardPage.build(this, controller);
+            case EMPLOYEES, BUSES, DRIVERS, TRIPS, INCIDENTS, ACCOUNTS -> ListPages.build(p, this, controller);
+            case ASSIGNMENTS -> AssignmentsPage.build(this, controller);
+            case REGISTRATIONS -> RegistrationsPage.build(this, controller);
+            case ATTENDANCE -> AttendancePage.build(this, controller);
             case REPORTS -> ReportsPage.build(this);
             case ROLES -> RolesPage.build(this);
-            case PLANNING -> PlanningPage.build(this);
+            case PLANNING -> PlanningPage.build(this, controller);
         };
         scroll.setContent(content);
         scroll.setVvalue(0);
@@ -199,6 +207,22 @@ public class AppShell extends StackPane implements Ctx {
     // ------------------------------------------------------------------ modale
     @Override
     public void openModal(String titleText) {
+        if (titleText.equals("Ajouter un bus")) {
+            Forms.bus(this, controller);
+            return;
+        }
+        if (titleText.toLowerCase().contains("incident") && !titleText.startsWith("Détail")) {
+            Forms.incident(this, controller, titleText);
+            return;
+        }
+        openModal(titleText, formBody(titleText), () -> {
+            toast(titleText + " — enregistré avec succès");
+            return true;
+        });
+    }
+
+    @Override
+    public void openModal(String titleText, Node form, BooleanSupplier onSave) {
         StackPane overlay = new StackPane();
         overlay.getStyleClass().add("modal-backdrop");
         Runnable close = () -> getChildren().remove(overlay);
@@ -211,14 +235,16 @@ public class AppShell extends StackPane implements Ctx {
         head.setAlignment(Pos.CENTER_LEFT);
         head.getStyleClass().add("modal-head");
 
-        VBox body = new VBox(formBody(titleText));
+        VBox body = new VBox(form);
         body.getStyleClass().add("modal-body");
 
         HBox foot = new HBox(10,
                 Ui.button("Annuler", "secondary", null, close),
                 Ui.button("Enregistrer", "primary", null, () -> {
-                    close.run();
-                    toast(titleText + " — enregistré avec succès");
+                    if (onSave.getAsBoolean()) {
+                        close.run();
+                        navigate(page);
+                    }
                 }));
         foot.setAlignment(Pos.CENTER_RIGHT);
         foot.getStyleClass().add("modal-foot");
@@ -270,17 +296,30 @@ public class AppShell extends StackPane implements Ctx {
     // ------------------------------------------------------------------ notification
     @Override
     public void toast(String message) {
+        showToast(message, false);
+    }
+
+    @Override
+    public void toastErreur(String message) {
+        showToast(message, true);
+    }
+
+    private void showToast(String message, boolean error) {
+        Label msg = Ui.label(message, "toast-msg");
+        msg.setWrapText(true);
+        msg.setMaxWidth(420);
         HBox t = new HBox(12,
-                Ui.label("✓", "toast-icon"),
-                new VBox(2, Ui.label("Opération réussie", "toast-title"), Ui.label(message, "toast-msg")));
+                Ui.label(error ? "!" : "✓", "toast-icon"),
+                new VBox(2, Ui.label(error ? "Opération refusée" : "Opération réussie", "toast-title"), msg));
         t.getStyleClass().add("toast");
+        if (error) t.getStyleClass().add("error");
         t.setAlignment(Pos.CENTER_LEFT);
         t.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         StackPane.setAlignment(t, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(t, new Insets(0, 24, 24, 0));
         getChildren().add(t);
 
-        PauseTransition pause = new PauseTransition(Duration.seconds(2.8));
+        PauseTransition pause = new PauseTransition(Duration.seconds(error ? 5 : 2.8));
         pause.setOnFinished(e -> getChildren().remove(t));
         pause.play();
     }

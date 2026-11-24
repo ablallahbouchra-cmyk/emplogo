@@ -12,31 +12,32 @@ public class Rapport {
     private LocalDate periodeFin;
     private String type;
 
-    private List<Trajet> trajets;
+    private List<Affectation> affectations;
 
     public Rapport() {
     }
 
     public Rapport(int idRapport, LocalDate periodeDebut, LocalDate periodeFin,
-                   String type, List<Trajet> trajets) {
+                   String type, List<Affectation> affectations) {
         this.idRapport = idRapport;
         this.periodeDebut = periodeDebut;
         this.periodeFin = periodeFin;
         this.type = type;
-        this.trajets = trajets;
+        this.affectations = affectations;
     }
 
     public int calculerNbTrajets() {
-        return trajets == null ? 0 : trajets.size();
+        return affectations == null ? 0 : affectations.size();
     }
 
     public double calculerTauxPresence() {
-        if (trajets == null || trajets.isEmpty()) return 0.0;
+        if (affectations == null || affectations.isEmpty()) return 0.0;
         long total = 0, presents = 0;
-        for (Trajet t : trajets) {
-            for (Inscription i : t.getInscriptions()) {
+        for (Affectation a : affectations) {
+            for (Inscription i : a.getInscriptions()) {
                 total++;
-                if (i.getStatutPresence() == StatutPresence.PRESENT) {
+                if (i.getStatutPresence() == StatutPresence.PRESENT
+                        || i.getStatutPresence() == StatutPresence.RETARD) {
                     presents++;
                 }
             }
@@ -69,6 +70,6 @@ public class Rapport {
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 
-    public List<Trajet> getTrajets() { return trajets; }
-    public void setTrajets(List<Trajet> trajets) { this.trajets = trajets; }
+    public List<Affectation> getAffectations() { return affectations; }
+    public void setAffectations(List<Affectation> affectations) { this.affectations = affectations; }
 }

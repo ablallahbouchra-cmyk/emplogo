@@ -1,5 +1,6 @@
 package com.transportpro;
 
+import com.transportpro.model.CompteUtilisateur;
 import com.transportpro.view.*;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -27,8 +28,8 @@ public class Main extends Application {
         scene.setRoot(new LoginView(this::showApp));
     }
 
-    private void showApp(String role) {
-        scene.setRoot(new AppShell(role, this::showLogin));
+    private void showApp(String role, CompteUtilisateur compte) {
+        scene.setRoot(new AppShell(role, compte, this::showLogin));
     }
 
     public static void main(String[] args) {
