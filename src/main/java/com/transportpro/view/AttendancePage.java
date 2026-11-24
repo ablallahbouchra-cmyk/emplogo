@@ -139,8 +139,13 @@ public final class AttendancePage {
     private static List<Presence> presences(List<ToggleGroup> groups, Affectation a) {
         List<Presence> result = new ArrayList<>();
         for (ToggleGroup g : groups) {
-            if (g.getSelectedToggle() == null) continue;
             Inscription i = (Inscription) g.getUserData();
+            if (g.getSelectedToggle() == null) {
+                if (i.getPresence() != null) {
+                    result.add(new Presence(0, i.getIdInscription(), StatutPresence.NON_RENSEIGNE, null, null));
+                }
+                continue;
+            }
             StatutPresence statut = (StatutPresence) g.getSelectedToggle().getUserData();
             Presence ancienne = i.getPresence();
             LocalTime heure = switch (statut) {

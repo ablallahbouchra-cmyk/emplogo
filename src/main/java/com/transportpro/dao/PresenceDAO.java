@@ -21,13 +21,18 @@ public class PresenceDAO {
         upsertAll(List.of(p));
     }
 
-    /** Enregistre toutes les présences dans une seule transaction. */
+    /** Enregistre toutes les présences dans une seule transaction (NON_RENSEIGNE supprime la ligne). */
     public void upsertAll(List<Presence> presences) throws SQLException {
         try (Connection c = DatabaseConnection.getConnection()) {
             c.setAutoCommit(false);
-            try (PreparedStatement ps = c.prepareStatement(UPSERT)) {
+            try (PreparedStatement ps = c.prepareStatement(UPSERT);
+                 PreparedStatement del = c.prepareStatement("DELETE FROM presence WHERE id_inscription = ?")) {
                 for (Presence p : presences) {
-                    if (p.getStatut() == null || p.getStatut() == StatutPresence.NON_RENSEIGNE) continue;
+                    if (p.getStatut() == null || p.getStatut() == StatutPresence.NON_RENSEIGNE) {
+                        del.setInt(1, p.getIdInscription());
+                        del.addBatch();
+                        continue;
+                    }
                     ps.setInt(1, p.getIdInscription());
                     ps.setString(2, p.getStatut().name());
                     JdbcUtil.setTime(ps, 3, p.getHeureMontee());
@@ -35,6 +40,7 @@ public class PresenceDAO {
                     ps.addBatch();
                 }
                 ps.executeBatch();
+                del.executeBatch();
                 c.commit();
             } catch (SQLException e) {
                 c.rollback();
