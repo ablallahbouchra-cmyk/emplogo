@@ -399,3 +399,7 @@
 .emp-sub-light { -fx-text-fill: #DFB6B2; -fx-font-size: 11px; -fx-font-weight: 600; }
 .emp-name { -fx-text-fill: #2B124C; -fx-font-size: 18px; -fx-font-weight: 800; }
 .emp-sub { -fx-text-fill: #854F6C; -fx-font-size: 10.5px; -fx-font-weight: 600; }
+
+/* toast d'erreur (messages SQL / triggers) */
+.toast.error { -fx-border-color: #F2B8B5; }
+.toast.error .toast-icon { -fx-background-color: #A92323; }

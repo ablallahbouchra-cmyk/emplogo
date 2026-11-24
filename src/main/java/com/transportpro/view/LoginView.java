@@ -1,5 +1,9 @@
 package com.transportpro.view;
 
+import com.transportpro.Ctx;
+import com.transportpro.Page;
+import com.transportpro.controller.MainController;
+import com.transportpro.model.CompteUtilisateur;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -22,7 +26,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 
 import java.net.URL;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Page de connexion « Employee Go / EMPLOGO » (reproduit la maquette Figma).
@@ -33,7 +37,7 @@ public class LoginView extends GridPane {
 
     private static final double CARD = 360;
 
-    public LoginView(Consumer<String> onLogin) {
+    public LoginView(BiConsumer<String, CompteUtilisateur> onLogin) {
         ColumnConstraints c1 = new ColumnConstraints();
         c1.setPercentWidth(52.5);
         ColumnConstraints c2 = new ColumnConstraints();
@@ -117,15 +121,16 @@ public class LoginView extends GridPane {
     }
 
     // ------------------------------------------------------------ côté droit : formulaire
-    private Node panel(Consumer<String> onLogin) {
-        HBox error = new HBox(8, Ui.icon("incidents", 18, "#A92323"),
-                Ui.label("Identifiant ou mot de passe incorrect. Accès refusé.", "login-error-text"));
+    private Node panel(BiConsumer<String, CompteUtilisateur> onLogin) {
+        Label errorText = Ui.label("Identifiant ou mot de passe incorrect. Accès refusé.", "login-error-text");
+        errorText.setWrapText(true);
+        HBox error = new HBox(8, Ui.icon("incidents", 18, "#A92323"), errorText);
         error.getStyleClass().add("login-error");
         error.setAlignment(Pos.CENTER_LEFT);
         error.setVisible(false);
         error.setManaged(false);
 
-        TextField user = new TextField("transport.resp");
+        TextField user = new TextField("sophie.martin");
         user.setPromptText("Votre identifiant");
 
         PasswordField pass = new PasswordField();
@@ -154,7 +159,7 @@ public class LoginView extends GridPane {
         passRow.setAlignment(Pos.CENTER_LEFT);
         passRow.getStyleClass().add("password-row");
 
-        // Profil de démonstration : sert uniquement à choisir le rôle ouvert par AppShell.
+        // Profil de démonstration : utilisé seulement si la base de données est indisponible.
         ComboBox<String> role = Ui.combo("Responsable", "Chauffeur", "Administrateur");
         role.setMaxWidth(Double.MAX_VALUE);
 
@@ -166,12 +171,36 @@ public class LoginView extends GridPane {
         HBox options = new HBox(remember, Ui.spacer(), forgot);
         options.setAlignment(Pos.CENTER_LEFT);
 
+        Runnable showError = () -> {
+            error.setVisible(true);
+            error.setManaged(true);
+        };
+        MainController controller = new MainController(new Ctx() {
+            @Override public void navigate(Page page) {}
+            @Override public void openModal(String title) {}
+            @Override public void toast(String message) {
+                errorText.setText(message);
+                showError.run();
+            }
+        });
+
         Runnable submit = () -> {
-            if (user.getText().isBlank() || "erreur".equals(pass.getText())) {
-                error.setVisible(true);
-                error.setManaged(true);
-            } else {
-                onLogin.accept(role.getValue());
+            MainController.ResultatAuth r = controller.authentifier(user.getText(), pass.getText());
+            switch (r.statut()) {
+                case OK -> onLogin.accept(r.compte().getRole().getLibelle(), r.compte());
+                case REFUSE -> {
+                    errorText.setText(r.message());
+                    showError.run();
+                }
+                case BDD_INDISPONIBLE -> {
+                    if (user.getText().isBlank() || "erreur".equals(pass.getText())) {
+                        errorText.setText("Identifiant ou mot de passe incorrect. Accès refusé.");
+                        showError.run();
+                    } else {
+                        System.err.println(r.message() + " — ouverture en mode démonstration.");
+                        onLogin.accept(role.getValue(), null);
+                    }
+                }
             }
         };
         Button login = Ui.button("Se connecter", "primary", null, submit);
@@ -179,7 +208,8 @@ public class LoginView extends GridPane {
         user.setOnAction(e -> submit.run());
         pass.setOnAction(e -> submit.run());
 
-        Label hint = wrapped("Astuce : utilisez « erreur » comme mot de passe pour tester l’état d’erreur.", "login-hint", 476);
+        Label hint = wrapped("Première connexion d’un compte de test : le mot de passe saisi est enregistré (hash BCrypt). "
+                + "Sans base de données, le profil de démonstration est utilisé.", "login-hint", 476);
         hint.setAlignment(Pos.CENTER);
         hint.setMaxWidth(Double.MAX_VALUE);
 
@@ -190,7 +220,7 @@ public class LoginView extends GridPane {
                 error,
                 Ui.field("Identifiant", user),
                 Ui.field("Mot de passe", passRow),
-                Ui.field("Profil de démonstration", role),
+                Ui.field("Profil de démonstration (si BDD indisponible)", role),
                 options,
                 login,
                 hint);

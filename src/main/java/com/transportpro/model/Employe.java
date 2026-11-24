@@ -9,6 +9,7 @@ public class Employe {
     private String matricule;
     private String nom;
     private String prenom;
+    private String email;
     private String telephone;
     private String adresse;             // joue le rôle de "point d'embarquement"
     private String departement;
@@ -19,12 +20,13 @@ public class Employe {
     }
 
     public Employe(int idEmploye, String matricule, String nom, String prenom,
-                   String telephone, String adresse, String departement,
+                   String email, String telephone, String adresse, String departement,
                    LocalDate dateEmbauche, boolean actif) {
         this.idEmploye = idEmploye;
         this.matricule = matricule;
         this.nom = nom;
         this.prenom = prenom;
+        this.email = email;
         this.telephone = telephone;
         this.adresse = adresse;
         this.departement = departement;
@@ -52,6 +54,9 @@ public class Employe {
 
     public String getPrenom() { return prenom; }
     public void setPrenom(String prenom) { this.prenom = prenom; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public String getTelephone() { return telephone; }
     public void setTelephone(String telephone) { this.telephone = telephone; }
