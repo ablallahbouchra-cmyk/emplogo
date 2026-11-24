@@ -8,6 +8,7 @@ import com.transportpro.model.Inscription;
 import com.transportpro.model.enums.StatutInscription;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -23,13 +24,14 @@ public final class PlanningPage {
 
     public static Node build(Ctx ctx, MainController controller) {
         Chauffeur chauffeur = controller.chauffeurConnecte();
-        boolean demo = chauffeur == null;
+        boolean demo = controller.getCompteConnecte() == null;
         if (demo) {
             List<Chauffeur> tous = controller.chargerChauffeurs();
             chauffeur = tous.isEmpty() ? null : tous.get(0);
         }
         if (chauffeur == null) {
-            return Ui.page(Ui.card(Ui.label("Aucun chauffeur trouvé dans la base de données.", "muted")));
+            return Ui.page(Ui.card(Ui.label(demo ? "Aucun chauffeur trouvé dans la base de données."
+                    : "Ce compte n’est lié à aucun chauffeur.", "muted")));
         }
 
         List<Affectation> affectations = Fmt.actives(controller.chargerAffectationsChauffeur(chauffeur.getIdChauffeur()));
@@ -114,8 +116,10 @@ public final class PlanningPage {
                 Fmt.orDash(i.getEmploye().getAdresse()),
                 i.getStatutPresence().getLibelle()
         }).toArray(String[][]::new);
-        ctx.openModal("Passagers — " + a.getTrajet().getNom(),
-                Ui.table(new String[]{"Employé", "Point d’embarquement", "Présence"}, rows, 2, null),
-                () -> true);
+        ScrollPane scroll = new ScrollPane(
+                Ui.table(new String[]{"Employé", "Point d’embarquement", "Présence"}, rows, 2, null));
+        scroll.setFitToWidth(true);
+        scroll.setPrefViewportHeight(Math.min(360, 44 + rows.length * 46));
+        ctx.openModal("Passagers — " + a.getTrajet().getNom(), scroll, () -> true);
     }
 }
