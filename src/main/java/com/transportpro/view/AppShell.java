@@ -166,7 +166,9 @@ public class AppShell extends StackPane implements Ctx {
             navigate(role.equals("Chauffeur") ? Page.PLANNING : Page.DASHBOARD);
         });
 
-        HBox tools = new HBox(14, search, today, bell, roleBox);
+        HBox tools = new HBox(14, search, today, bell);
+        // Changement de profil réservé au mode démonstration (rôle réel imposé après authentification)
+        if (compte == null) tools.getChildren().add(roleBox);
         tools.setAlignment(Pos.CENTER_RIGHT);
 
         HBox header = new HBox(heading, Ui.spacer(), tools);
